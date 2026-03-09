@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from propfirmmatch_price_checker import (
@@ -52,7 +52,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-static_dir = str((Path(__file__).resolve().parent / "web"))
+static_dir = Path(__file__).resolve().parent / "web"
 
 _propfirm_table_cache: dict[str, Any] = {}
 _propfirm_table_cache_lock = asyncio.Lock()
@@ -184,8 +184,24 @@ async def health():
     }
 
 
-if os.path.isdir(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/propfirmsearch.html", status_code=307)
+
+
+@app.get("/propfirmsearch.html")
+async def propfirmsearch_page():
+    page = static_dir / "propfirmsearch.html"
+    if not page.exists():
+        return JSONResponse(
+            {"status": "error", "message": "Missing web/propfirmsearch.html in deployment bundle"},
+            status_code=500,
+        )
+    return FileResponse(page)
+
+
+if static_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
 
 if __name__ == "__main__":
@@ -197,5 +213,6 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT", "8081")),
         reload=os.getenv("RELOAD", "1") == "1",
     )
+
 
 
