@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+    <style>
+      :root {
+        --bg-0: #040805;
+        --bg-1: #0a130c;
+        --panel: #08110b;
+        --ink: #9dffb3;
+        --muted: #5bb873;
+        --line: #1f4a2c;
+        --accent: #6cff91;
+        --accent-strong: #d7ff63;
+        --thead: #0d1b11;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        font-family: "Consolas", "Courier New", monospace;
+        color: var(--ink);
+        background:
+          radial-gradient(1200px 800px at 10% -10%, #0f1d13 0%, transparent 55%),
+          radial-gradient(1000px 700px at 100% 0%, #0a1a10 0%, transparent 60%),
+          linear-gradient(180deg, var(--bg-1), var(--bg-0));
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(124, 255, 162, 0.03) 0px,
+          rgba(124, 255, 162, 0.03) 1px,
+          transparent 2px,
+          transparent 4px
+        );
+        opacity: 0.6;
+      }
+
+      .page {
+        max-width: 1500px;
+        margin: 20px auto;
+        padding: 0 14px;
+      }
+
+      .panel {
+        background: linear-gradient(180deg, rgba(17, 36, 23, 0.45), rgba(6, 13, 8, 0.9));
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        box-shadow: 0 0 0 1px rgba(124, 255, 162, 0.12), 0 20px 40px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+      }
+
+      .top {
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(18, 44, 27, 0.55), rgba(10, 20, 13, 0.4));
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--accent-strong);
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(120px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .controls input,
+      .controls select,
+      .controls button {
+        width: 100%;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--ink);
+        background: #061009;
+      }
+
+      .controls input::placeholder { color: #4a9460; }
+
+      .controls input:focus,
+      .controls select:focus,
+      .controls button:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(108, 255, 145, 0.4);
+      }
+
+      .controls button {
+        cursor: pointer;
+        background: linear-gradient(180deg, #0f2b1a, #0a1c12);
+        color: var(--accent-strong);
+        border-color: #2d6a3f;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .controls button:hover { filter: brightness(1.15); }
+
+      .table-wrap {
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: 74vh;
+      }
+
+      table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        text-align: left;
+        background: var(--thead);
+        border-bottom: 1px solid var(--line);
+        border-right: 1px solid rgba(47, 104, 62, 0.35);
+        padding: 10px;
+        white-space: normal;
+        word-break: break-word;
+        cursor: pointer;
+        color: #b9ffcb;
+      }
+
+      tbody td {
+        border-bottom: 1px solid rgba(47, 104, 62, 0.4);
+        border-right: 1px solid rgba(47, 104, 62, 0.2);
+        padding: 8px 10px;
+        vertical-align: top;
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      tbody tr:nth-child(2n) { background: rgba(16, 37, 23, 0.25); }
+      tbody tr:hover { background: rgba(35, 78, 48, 0.35); }
+
+      tbody a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      tbody a:hover { color: var(--accent-strong); text-decoration: underline; }
+
+      .sort-on {
+        color: var(--accent-strong);
+        background: #132616;
+      }
+
+      @media (max-width: 980px) {
+        .controls {
+          grid-template-columns: repeat(2, minmax(120px, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <header class="top">
+          <h1>Search</h1>
+          <div class="meta" id="meta">Loading...</div>
+          <div class="controls">
+            <input id="search" type="search" placeholder="Search firm/challenge/size/code" />
+            <select id="market">
+              <option value="">All Markets</option>
+            </select>
+            <select id="firm">
+              <option value="">All Firms</option>
+            </select>
+            <select id="step">
+              <option value="">All Steps</option>
+            </select>
+            <select id="size">
+              <option value="">All Sizes</option>
+            </select>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <table id="table">
+            <thead><tr id="head-row"></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const columns = [
+        { key: 'market', label: 'Market', type: 'text' },
+        { key: 'firm_name', label: 'Firm', type: 'text' },
+        { key: 'challenge_name', label: 'Challenge', type: 'text' },
+        { key: 'challenge_step', label: 'Step', type: 'text' },
+        { key: 'account_size', label: 'Account Size', type: 'text' },
+        { key: 'original_price', label: 'Original', type: 'money' },
+        { key: 'discounted_price', label: 'Discounted', type: 'money' },
+        { key: 'discount_pct', label: 'Discount %', type: 'number' },
+        { key: 'activation_fee', label: 'Activation', type: 'money' },
+        { key: 'max_loss_label', label: 'Max Loss', type: 'text' },
+        { key: 'profit_target_label', label: 'Profit Target', type: 'text' },
+        { key: 'profit_split_pct', label: 'Split %', type: 'number' },
+        { key: 'ptdd_ratio', label: 'PTDD', type: 'number' },
+      ];
+
+      const state = {
+        rows: [],
+        view: [],
+        sortKey: 'discounted_price',
+        sortDir: 'asc',
+      };
+
+      const el = {
+        meta: document.getElementById('meta'),
+        search: document.getElementById('search'),
+        market: document.getElementById('market'),
+        firm: document.getElementById('firm'),
+        step: document.getElementById('step'),
+        size: document.getElementById('size'),
+        headRow: document.getElementById('head-row'),
+        body: document.getElementById('body'),
+      };
+
+      const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+
+      const affiliateLinks = {
+        fundednext: 'https://fundednext.com/?fpr=theproptrader',
+        hantec_trader: 'https://myhtrader.hmarkets.com/purchasechallenge?affiliateid=2521&lang=en&DiscountCode=NEW30',
+        ftmo: 'https://trader.ftmo.com/?affiliates=4351',
+        city_traders_imperium: 'https://app.citytradersimperium.com/register?referral_code=5cdeb1',
+        funding_pips: 'https://app.fundingpips.com/register?ref=BF79B205',
+        maven_trading: 'https://maventrading.com/?ref=mzm0nzz',
+        brightfunded: 'https://brightfunded.com/a/yeFocQRQTaOfEH0glMBKkA',
+        the_5ers: 'https://the5ers.com/',
+        e8_markets: 'https://e8markets.com/',
+        alpha_capital_group: 'https://app.alphacapitalgroup.uk/signup/MATCH',
+        lucid_trading: 'https://lucidtrading.com/',
+        tradeify: 'https://tradeify.co/',
+        fundednext_futures: 'https://fundednext.com/futures//?fpr=theproptrader',
+        my_funded_futures: 'https://myfundedfutures.com/',
+        alpha_futures: 'https://app.alpha-futures.com/',
+        take_profit_trader: 'https://takeprofittrader.com/',
+        apex_trader_funding: 'https://apextraderfunding.com/',
+        tradeday: 'https://www.tradeday.com/',
+        topstep: 'https://www.topstep.com/',
+        top_one_futures: 'https://toponefutures.com/',
+      };
+
+      function toText(v) {
+        if (v === null || v === undefined) return '';
+        return String(v);
+      }
+
+      function toNumber(v) {
+        if (v === null || v === undefined || v === '') return Number.NaN;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : Number.NaN;
+      }
+      function canonicalAlphaNum(v) {
+        return toText(v).toLowerCase().replace(/[^a-z0-9]/g, '');
+      }
+
+      function consumeCanonicalPrefix(text, prefixCanonical) {
+        if (!prefixCanonical) return -1;
+
+        let consumed = 0;
+        for (let i = 0; i < text.length; i += 1) {
+          const ch = text[i];
+          if (!/[a-z0-9]/i.test(ch)) {
+            continue;
+          }
+
+          if (consumed >= prefixCanonical.length) {
+            return -1;
+          }
+
+          if (ch.toLowerCase() !== prefixCanonical[consumed]) {
+            return -1;
+          }
+
+          consumed += 1;
+          if (consumed === prefixCanonical.length) {
+            return i + 1;
+          }
+        }
+
+        return -1;
+      }
+
+      function stripLeadingFirmName(challengeName, firmName, firmKey) {
+        const challenge = toText(challengeName).trim();
+        const firm = toText(firmName).trim();
+        if (!challenge) return challenge;
+
+        const aliasByFirmKey = {
+          maven_trading: ['Maven'],
+          funding_pips: ['FundingPips'],
+          take_profit_trader: ['TakeProfitTrader'],
+          alpha_capital_group: ['Alpha Capital'],
+          fundednext: ['FundedNext'],
+          fundednext_futures: ['FundedNext Futures', 'FundedNext'],
+          brightfunded: ['BrightFunded'],
+          my_funded_futures: ['MyFundedFutures'],
+          top_one_futures: ['Top One Futures', 'TopOneFutures'],
+        };
+
+        const keyLabel = toText(firmKey).replace(/_/g, ' ').trim();
+        const candidates = [
+          firm,
+          keyLabel,
+          keyLabel.replace(/\s+/g, ''),
+          ...(aliasByFirmKey[firmKey] || []),
+        ].filter(Boolean);
+
+        for (const candidate of candidates) {
+          const cutIdx = consumeCanonicalPrefix(challenge, canonicalAlphaNum(candidate));
+          if (cutIdx < 0) continue;
+
+          const stripped = challenge.slice(cutIdx).replace(/^\s*[-:|/]+\s*/, '').trim();
+          if (stripped) {
+            return stripped;
+          }
+        }
+
+        return challenge;
+      }
+
+      function fmt(v, type) {
+        if (v === null || v === undefined || v === '') return '';
+        if (type === 'money') {
+          const n = toNumber(v);
+          return Number.isFinite(n) ? usd.format(n) : '';
+        }
+        if (type === 'number') {
+          const n = toNumber(v);
+          return Number.isFinite(n) ? String(n) : '';
+        }
+        return toText(v);
+      }
+
+      function buildDealLink(row) {
+        const base = affiliateLinks[row.firm_key];
+        if (!base) return '';
+
+        let url;
+        try {
+          url = new URL(base);
+        } catch {
+          return base;
+        }
+
+        const code = toText(row.discount_code).trim();
+        if (code) {
+          url.searchParams.set('DiscountCode', code);
+        }
+
+        return url.toString();
+      }
+
+      function uniqSorted(values) {
+        return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+      }
+
+      function sizeSortValue(value) {
+        const text = toText(value).toUpperCase().replace(/,/g, '').trim();
+        const match = text.match(/(\d+(?:\.\d+)?)\s*([KMB])?/);
+        if (!match) return Number.POSITIVE_INFINITY;
+
+        const num = Number(match[1]);
+        if (!Number.isFinite(num)) return Number.POSITIVE_INFINITY;
+
+        const unit = match[2] || '';
+        const multiplier = unit === 'K' ? 1_000 : unit === 'M' ? 1_000_000 : unit === 'B' ? 1_000_000_000 : 1;
+        return num * multiplier;
+      }
+
+      function uniqSizesAscending(values) {
+        const uniq = [...new Set(values.filter(Boolean))];
+        return uniq.sort((a, b) => {
+          const av = sizeSortValue(a);
+          const bv = sizeSortValue(b);
+          if (Number.isFinite(av) && Number.isFinite(bv) && av !== bv) return av - bv;
+          return toText(a).localeCompare(toText(b));
+        });
+      }
+
+      function refillSelect(selectEl, values, label) {
+        const current = selectEl.value;
+        selectEl.innerHTML = `<option value="">${label}</option>`;
+        for (const value of values) {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = value;
+          selectEl.appendChild(opt);
+        }
+        if ([...selectEl.options].some((o) => o.value === current)) {
+          selectEl.value = current;
+        }
+      }
+
+      function buildHeaders() {
+        el.headRow.innerHTML = '';
+        for (const col of columns) {
+          const th = document.createElement('th');
+          th.dataset.key = col.key;
+          th.textContent = col.label;
+          th.addEventListener('click', () => {
+            if (state.sortKey === col.key) {
+              state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+              state.sortKey = col.key;
+              state.sortDir = col.type === 'text' ? 'asc' : 'desc';
+            }
+            updateSortUI();
+            applyFilters();
+          });
+          el.headRow.appendChild(th);
+        }
+        updateSortUI();
+      }
+
+      function updateSortUI() {
+        for (const th of el.headRow.querySelectorAll('th')) {
+          th.classList.toggle('sort-on', th.dataset.key === state.sortKey);
+          if (th.dataset.key === state.sortKey) {
+            const arrow = state.sortDir === 'asc' ? ' ^' : ' v';
+            const label = columns.find((c) => c.key === th.dataset.key)?.label || th.dataset.key;
+            th.textContent = label + arrow;
+          } else {
+            const label = columns.find((c) => c.key === th.dataset.key)?.label || th.dataset.key;
+            th.textContent = label;
+          }
+        }
+      }
+
+      function applyFilters() {
+        const q = el.search.value.trim().toLowerCase();
+        const market = el.market.value;
+        const firm = el.firm.value;
+        const step = el.step.value;
+        const size = el.size.value;
+
+        let rows = state.rows.filter((row) => {
+          if (market && row.market !== market) return false;
+          if (firm && row.firm_name !== firm) return false;
+          if (step && row.challenge_step !== step) return false;
+          if (size && row.account_size !== size) return false;
+          if (!q) return true;
+          const hay = [
+            row.firm_name,
+            row.firm_key,
+            row.challenge_name,
+            row.challenge_step,
+            row.account_size,
+            row.discount_code,
+          ].join(' ').toLowerCase();
+          return hay.includes(q);
+        });
+
+        const sortCol = columns.find((c) => c.key === state.sortKey) || columns[0];
+        rows.sort((a, b) => {
+          if (sortCol.type === 'money' || sortCol.type === 'number') {
+            const av = toNumber(a[state.sortKey]);
+            const bv = toNumber(b[state.sortKey]);
+            const aNaN = Number.isNaN(av);
+            const bNaN = Number.isNaN(bv);
+            if (aNaN && bNaN) return 0;
+            if (aNaN) return 1;
+            if (bNaN) return -1;
+            return state.sortDir === 'asc' ? av - bv : bv - av;
+          }
+          const av = toText(a[state.sortKey]).toLowerCase();
+          const bv = toText(b[state.sortKey]).toLowerCase();
+          return state.sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        });
+
+        state.view = rows;
+        renderBody();
+      }
+
+      function renderBody() {
+        const frag = document.createDocumentFragment();
+        for (const row of state.view) {
+          const tr = document.createElement('tr');
+          for (const col of columns) {
+            const td = document.createElement('td');
+            if (col.key === 'firm_name' && row.deal_link) {
+              const a = document.createElement('a');
+              a.href = row.deal_link;
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+              a.textContent = toText(row.firm_name);
+              td.appendChild(a);
+            } else if (col.key === 'activation_fee') {
+              const activation = row[col.key];
+              td.textContent = (activation === null || activation === undefined || activation === '') ? '$0.00' : fmt(activation, col.type);
+            } else if (col.key === 'max_loss_label') {
+              td.textContent = toText(row[col.key]).replace(/daily/gi, 'day');
+            } else {
+              td.textContent = fmt(row[col.key], col.type);
+            }
+            tr.appendChild(td);
+          }
+          frag.appendChild(tr);
+        }
+        el.body.innerHTML = '';
+        el.body.appendChild(frag);
+
+        el.meta.textContent = `Rows: ${state.view.length.toLocaleString()} shown (${state.rows.length.toLocaleString()} total).`;
+      }
+
+      function hydrateFilters() {
+        refillSelect(el.market, uniqSorted(state.rows.map((r) => r.market)), 'All Markets');
+        refillSelect(el.firm, uniqSorted(state.rows.map((r) => r.firm_name)), 'All Firms');
+        refillSelect(el.step, uniqSorted(state.rows.map((r) => r.challenge_step)), 'All Steps');
+        refillSelect(
+          el.size,
+          uniqSizesAscending(state.rows.map((r) => r.account_size)),
+          'All Sizes'
+        );
+      }
+
+      async function loadRows(forceRefresh) {
+        const url = forceRefresh
+          ? '/api/propfirmmatch/challenges?refresh=true'
+          : '/api/propfirmmatch/challenges';
+
+        el.meta.textContent = 'Loading from source API...';
+        const res = await fetch(url);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Request failed (${res.status})`);
+        }
+
+        const payload = await res.json();
+        state.rows = Array.isArray(payload.rows) ? payload.rows : [];
+        state.rows = state.rows.map((row) => {
+          const stepValue = toText(row.challenge_step).trim();
+          return {
+            ...row,
+            challenge_name: stripLeadingFirmName(row.challenge_name, row.firm_name, row.firm_key),
+            challenge_step: stepValue || 'instant',
+            deal_link: buildDealLink(row),
+          };
+        });
+
+        hydrateFilters();
+        applyFilters();
+
+        const generatedAt = payload.generated_at || 'unknown';
+        el.meta.textContent = `Rows: ${state.view.length.toLocaleString()} shown (${state.rows.length.toLocaleString()} total). Generated: ${generatedAt}`;
+      }
+
+      function wireEvents() {
+        [el.search, el.market, el.firm, el.step, el.size].forEach((node) => {
+          node.addEventListener('input', applyFilters);
+          node.addEventListener('change', applyFilters);
+        });
+      }
+
+      async function init() {
+        buildHeaders();
+        wireEvents();
+        try {
+          await loadRows(false);
+        } catch (err) {
+          el.meta.textContent = `Load failed: ${err.message}`;
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
